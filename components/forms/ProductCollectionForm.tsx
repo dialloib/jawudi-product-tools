@@ -1,8 +1,12 @@
 'use client'
 
-import React, { useState } from 'react'
-import { Camera, MapPin, DollarSign, Package, Info, Building2, CheckCircle, ArrowLeft, X } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Camera, MapPin, DollarSign, Package, Info, Building2, CheckCircle, ArrowLeft, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import PhotoUpload from './PhotoUpload'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { supabase } from '@/lib/supabase/client'
 
 interface Specification {
   key: string
@@ -10,6 +14,9 @@ interface Specification {
 }
 
 export default function ProductCollectionForm() {
+  const { user, agent, isLoading: authLoading } = useAuth()
+  const router = useRouter()
+  const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState({
     // Basic Product Info
     productName: '',
@@ -51,6 +58,7 @@ export default function ProductCollectionForm() {
   })
 
   const [specs, setSpecs] = useState<Specification[]>([{ key: '', value: '' }])
+  const [photos, setPhotos] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
 
   const categories = [
@@ -113,48 +121,78 @@ export default function ProductCollectionForm() {
     setSpecs(newSpecs)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    // Format data for submission
-    const formattedData = {
-      product_catalog: {
-        name: formData.productName,
-        description: formData.description,
-        category: formData.category,
-        unit_measure: formData.unitMeasure,
-        product_code: formData.productCode || null,
-        brand: formData.brand || null,
-        sell_price: formData.sellPrice ? parseFloat(formData.sellPrice) : null,
-        currency: formData.currency,
-        handling_fee_per_unit: formData.handlingFee ? parseFloat(formData.handlingFee) : null,
-        delivery_cost_per_km: formData.deliveryCostPerKm ? parseFloat(formData.deliveryCostPerKm) : null,
-        minimum_order_quantity: formData.minOrderQty ? parseInt(formData.minOrderQty) : null,
-        maximum_order_quantity: formData.maxOrderQty ? parseInt(formData.maxOrderQty) : null,
-        tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
-        specifications: Object.fromEntries(
-          specs.filter(s => s.key && s.value).map(s => [s.key, s.value])
-        ),
-      },
-      business_product: {
-        vendor_info: {
+    if (!agent) {
+      alert('You must be logged in to submit data')
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      // Insert product
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .insert({
+          agent_id: agent.id,
+          product_name: formData.productName,
+          description: formData.description || null,
+          category: formData.category,
+          brand: formData.brand || null,
+          product_code: formData.productCode || null,
+          unit_measure: formData.unitMeasure,
+          sell_price: formData.sellPrice ? parseFloat(formData.sellPrice) : null,
+          currency: formData.currency,
+          handling_fee_per_unit: formData.handlingFee ? parseFloat(formData.handlingFee) : null,
+          delivery_cost_per_km: formData.deliveryCostPerKm ? parseFloat(formData.deliveryCostPerKm) : null,
+          minimum_order_quantity: formData.minOrderQty ? parseInt(formData.minOrderQty) : null,
+          maximum_order_quantity: formData.maxOrderQty ? parseInt(formData.maxOrderQty) : null,
+          tags: formData.tags ? formData.tags.split(',').map(t => t.trim()) : [],
+          specifications: Object.fromEntries(
+            specs.filter(s => s.key && s.value).map(s => [s.key, s.value])
+          ),
+          status: 'draft'
+        })
+        .select()
+        .single()
+
+      if (productError) throw productError
+
+      // Insert vendor
+      const { error: vendorError } = await supabase
+        .from('vendors')
+        .insert({
+          product_id: product.id,
           business_name: formData.businessName,
           contact_person: formData.vendorContact,
           phone: formData.vendorPhone,
-          email: formData.vendorEmail,
-          address: formData.vendorAddress
-        },
-        vendor_product_code: formData.vendorProductCode || null,
-        price_per_unit: parseFloat(formData.vendorPrice),
-        currency: formData.vendorCurrency,
-        quantity_available: parseInt(formData.availableQuantity),
-        minimum_order_quantity: formData.vendorMinOrderQty ? parseInt(formData.vendorMinOrderQty) : null
-      },
-      notes: formData.notes
-    }
+          email: formData.vendorEmail || null,
+          address: formData.vendorAddress,
+          vendor_product_code: formData.vendorProductCode || null,
+          price_per_unit: parseFloat(formData.vendorPrice),
+          currency: formData.vendorCurrency,
+          quantity_available: parseInt(formData.availableQuantity),
+          minimum_order_quantity: formData.vendorMinOrderQty ? parseInt(formData.vendorMinOrderQty) : null
+        })
 
-    console.log('Product Data:', JSON.stringify(formattedData, null, 2))
-    setSubmitted(true)
+      if (vendorError) throw vendorError
+
+      console.log('Product saved:', product)
+      setSubmitted(true)
+    } catch (error) {
+      console.error('Error saving product:', error)
+      alert('Failed to save product. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const resetForm = () => {
@@ -185,7 +223,16 @@ export default function ProductCollectionForm() {
       notes: ''
     })
     setSpecs([{ key: '', value: '' }])
+    setPhotos([])
     setSubmitted(false)
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+      </div>
+    )
   }
 
   if (submitted) {
@@ -201,7 +248,7 @@ export default function ProductCollectionForm() {
               <h3 className="font-semibold text-gray-700 mb-2">Next Steps:</h3>
               <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
                 <li>Data saved locally (will sync when connected)</li>
-                <li>Upload product photos via the submissions page</li>
+                <li>Photos captured: {photos.length}</li>
                 <li>Submit for review when ready</li>
               </ol>
             </div>
@@ -690,32 +737,35 @@ export default function ProductCollectionForm() {
             />
           </div>
 
-          {/* Photo Reminder */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Camera className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <h3 className="font-semibold text-amber-900 mb-1">Don't Forget Product Photos!</h3>
-                <p className="text-sm text-amber-800">
-                  Take clear photos of the product from multiple angles. Photos will be uploaded separately
-                  after form submission.
-                </p>
-              </div>
+          {/* Product Photos */}
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4 pb-2 border-b-2 border-emerald-500">
+              <Camera className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-xl font-bold text-gray-800">Product Photos</h2>
             </div>
+            <PhotoUpload
+              photos={photos}
+              onPhotosChange={setPhotos}
+              maxPhotos={10}
+              label="Product"
+            />
           </div>
 
           {/* Submit Button */}
           <div className="flex flex-col sm:flex-row gap-3">
             <button
               type="submit"
-              className="flex-1 bg-emerald-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-emerald-700 transition shadow-lg"
+              disabled={isSaving}
+              className="flex-1 bg-emerald-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-emerald-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              Submit Product Information
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSaving ? 'Saving...' : 'Submit Product Information'}
             </button>
             <button
               type="button"
               onClick={resetForm}
-              className="px-6 py-3 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition"
+              disabled={isSaving}
+              className="px-6 py-3 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Reset Form
             </button>

@@ -1,7 +1,13 @@
+'use client'
+
 import Link from 'next/link'
-import { Home, FileText, Package } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Home, FileText, Package, LogOut, LogIn } from 'lucide-react'
+import { useAuth } from '@/lib/contexts/AuthContext'
 
 export default function HomePage() {
+  const { user, agent, signOut, isLoading } = useAuth()
+  const router = useRouter()
   return (
     <div className="min-h-screen bg-gradient-to-br from-jawudi-navy to-deep-navy text-white">
       <div className="container mx-auto px-4 py-12">
@@ -11,6 +17,31 @@ export default function HomePage() {
           </div>
           <h1 className="text-4xl font-bold mb-4">Jawudi Field Agent</h1>
           <p className="text-xl text-gray-300">Data Collection Tool</p>
+
+          {user && agent && (
+            <div className="mt-4 inline-flex items-center gap-3 bg-white/10 px-6 py-3 rounded-full backdrop-blur-sm border border-white/20">
+              <span className="text-sm">Welcome, <span className="font-semibold">{agent.full_name}</span></span>
+              <button
+                onClick={signOut}
+                className="text-red-400 hover:text-red-300 transition"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {!user && !isLoading && (
+            <div className="mt-4">
+              <button
+                onClick={() => router.push('/login')}
+                className="inline-flex items-center gap-2 bg-jawudi-mint text-jawudi-navy px-6 py-3 rounded-full font-semibold hover:bg-jawudi-mint/90 transition"
+              >
+                <LogIn className="w-4 h-4" />
+                Sign In to Continue
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="max-w-4xl mx-auto grid gap-6 md:grid-cols-2">

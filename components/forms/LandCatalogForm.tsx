@@ -1,10 +1,17 @@
 'use client'
 
-import React, { useState } from 'react'
-import { MapPin, DollarSign, FileText, Droplets, Zap, Home, CheckCircle, ArrowLeft } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { MapPin, DollarSign, FileText, Droplets, Zap, Home, CheckCircle, ArrowLeft, Camera, Loader2 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import PhotoUpload from './PhotoUpload'
+import { useAuth } from '@/lib/contexts/AuthContext'
+import { supabase } from '@/lib/supabase/client'
 
 export default function LandCatalogForm() {
+  const { user, agent, isLoading: authLoading } = useAuth()
+  const router = useRouter()
+  const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState({
     title: '', description: '', countryCode: 'GN', region: '', city: '', address: '',
     latitude: '', longitude: '', landSizeValue: '', landSizeUnit: 'HECTARES', landType: '',
@@ -20,6 +27,7 @@ export default function LandCatalogForm() {
     ownerPhone: '', ownerEmail: '', notes: ''
   })
 
+  const [photos, setPhotos] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -35,11 +43,93 @@ export default function LandCatalogForm() {
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push('/login')
+    }
+  }, [user, authLoading, router])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // For now, just console.log - will integrate with Supabase later
-    console.log('Land Listing Data:', formData)
-    setSubmitted(true)
+
+    if (!agent) {
+      alert('You must be logged in to submit data')
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      // Insert land listing
+      const { data: listing, error: listingError } = await supabase
+        .from('land_listings')
+        .insert({
+          agent_id: agent.id,
+          title: formData.title,
+          description: formData.description || null,
+          country_code: formData.countryCode,
+          region: formData.region,
+          city: formData.city,
+          address: formData.address,
+          latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+          longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+          land_size_value: parseFloat(formData.landSizeValue),
+          land_size_unit: formData.landSizeUnit,
+          land_type: formData.landType,
+          zoning_classification: formData.zoningClassification || null,
+          title_deed_status: formData.titleDeedStatus || null,
+          title_deed_number: formData.titleDeedNumber || null,
+          topography: formData.topography || null,
+          topography_notes: formData.topographyNotes || null,
+          soil_type: formData.soilType || null,
+          vegetation_cover: formData.vegetationCover || null,
+          road_access: formData.roadAccess || null,
+          road_access_notes: formData.roadAccessNotes || null,
+          distance_to_main_road_km: formData.distanceToMainRoad ? parseFloat(formData.distanceToMainRoad) : null,
+          has_electricity: formData.hasElectricity,
+          has_water: formData.hasWater,
+          has_sewage: formData.hasSewage,
+          utilities_notes: formData.utilitiesNotes || null,
+          distance_to_market_km: formData.distanceToMarket ? parseFloat(formData.distanceToMarket) : null,
+          distance_to_school_km: formData.distanceToSchool ? parseFloat(formData.distanceToSchool) : null,
+          distance_to_hospital_km: formData.distanceToHospital ? parseFloat(formData.distanceToHospital) : null,
+          distance_to_town_center_km: formData.distanceToTownCenter ? parseFloat(formData.distanceToTownCenter) : null,
+          total_price: parseFloat(formData.totalPrice),
+          price_per_unit: formData.pricePerUnit ? parseFloat(formData.pricePerUnit) : null,
+          currency_code: formData.currencyCode,
+          price_negotiable: formData.priceNegotiable,
+          flood_risk: formData.floodRisk || null,
+          environmental_concerns: formData.environmentalConcerns || null,
+          development_potential: formData.developmentPotential || null,
+          nearby_developments: formData.nearbyDevelopments || null,
+          community_traditional_authority: formData.communityTraditionalAuthority || null,
+          has_land_disputes: formData.hasLandDisputes,
+          land_disputes_notes: formData.landDisputesNotes || null,
+          seasonal_access: formData.seasonalAccess || null,
+          mobile_network_coverage: formData.mobileNetworkCoverage || null,
+          security_situation: formData.securitySituation || null,
+          local_language: formData.localLanguage || null,
+          customary_rights_notes: formData.customaryRightsNotes || null,
+          owner_business_name: formData.ownerBusinessName,
+          owner_contact_person: formData.ownerContact,
+          owner_phone: formData.ownerPhone,
+          owner_email: formData.ownerEmail || null,
+          notes: formData.notes || null,
+          status: 'draft'
+        })
+        .select()
+        .single()
+
+      if (listingError) throw listingError
+
+      console.log('Land listing saved:', listing)
+      setSubmitted(true)
+    } catch (error) {
+      console.error('Error saving land listing:', error)
+      alert('Failed to save land listing. Please try again.')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const resetForm = () => {
@@ -57,7 +147,16 @@ export default function LandCatalogForm() {
       localLanguage: '', customaryRightsNotes: '', ownerBusinessName: '', ownerContact: '',
       ownerPhone: '', ownerEmail: '', notes: ''
     })
+    setPhotos([])
     setSubmitted(false)
+  }
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    )
   }
 
   if (submitted) {
@@ -72,7 +171,7 @@ export default function LandCatalogForm() {
               <h3 className="font-semibold text-gray-700 mb-2">Next Steps:</h3>
               <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
                 <li>Data saved locally (will sync when connected)</li>
-                <li>Upload photos via the submissions page</li>
+                <li>Photos captured: {photos.length}</li>
                 <li>Submit for review when ready</li>
               </ol>
             </div>
@@ -436,12 +535,35 @@ export default function LandCatalogForm() {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
           </div>
 
+          {/* Property Photos */}
+          <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+            <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+              <Camera className="w-5 h-5" /> Property Photos
+            </h2>
+            <PhotoUpload
+              photos={photos}
+              onPhotosChange={setPhotos}
+              maxPhotos={10}
+              label="Property"
+            />
+          </div>
+
           {/* Submit Buttons */}
           <div className="flex flex-col sm:flex-row gap-3">
-            <button type="submit" className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg">
-              Submit Land Listing
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+              {isSaving ? 'Saving...' : 'Submit Land Listing'}
             </button>
-            <button type="button" onClick={resetForm} className="px-6 py-3 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition">
+            <button
+              type="button"
+              onClick={resetForm}
+              disabled={isSaving}
+              className="px-6 py-3 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Reset Form
             </button>
           </div>
