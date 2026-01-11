@@ -2,12 +2,30 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Home, FileText, Package, LogOut, LogIn } from 'lucide-react'
+import { Home, FileText, Package, LogOut, LogIn, Shield } from 'lucide-react'
 import { useAuth } from '@/lib/contexts/AuthContext'
 
 export default function HomePage() {
   const { user, agent, signOut, isLoading } = useAuth()
   const router = useRouter()
+
+  // Redirect to login if not authenticated
+  if (!isLoading && !user) {
+    router.push('/login')
+    return null
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-jawudi-navy to-deep-navy text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-jawudi-mint border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-300">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-jawudi-navy to-deep-navy text-white">
       <div className="container mx-auto px-4 py-12">
@@ -18,7 +36,7 @@ export default function HomePage() {
           <h1 className="text-4xl font-bold mb-4">Jawudi Field Agent</h1>
           <p className="text-xl text-gray-300">Data Collection Tool</p>
 
-          {user && agent && (
+          {agent && (
             <div className="mt-4 inline-flex items-center gap-3 bg-white/10 px-6 py-3 rounded-full backdrop-blur-sm border border-white/20">
               <span className="text-sm">Welcome, <span className="font-semibold">{agent.full_name}</span></span>
               <button
@@ -27,18 +45,6 @@ export default function HomePage() {
                 title="Sign out"
               >
                 <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {!user && !isLoading && (
-            <div className="mt-4">
-              <button
-                onClick={() => router.push('/login')}
-                className="inline-flex items-center gap-2 bg-jawudi-mint text-jawudi-navy px-6 py-3 rounded-full font-semibold hover:bg-jawudi-mint/90 transition"
-              >
-                <LogIn className="w-4 h-4" />
-                Sign In to Continue
               </button>
             </div>
           )}
@@ -65,6 +71,23 @@ export default function HomePage() {
             <p className="text-gray-300">
               Catalog building materials and collect supplier network information.
             </p>
+          </Link>
+        </div>
+
+        <div className="max-w-4xl mx-auto mt-8">
+          <Link
+            href="/admin"
+            className="bg-purple-600/20 backdrop-blur-sm border border-purple-400/30 rounded-2xl p-8 hover:bg-purple-600/30 transition group flex items-center justify-between"
+          >
+            <div className="flex items-center gap-4">
+              <Shield className="w-12 h-12 text-purple-400 group-hover:scale-110 transition" />
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Admin Dashboard</h2>
+                <p className="text-gray-300">
+                  Review and manage field agent submissions
+                </p>
+              </div>
+            </div>
           </Link>
         </div>
 
