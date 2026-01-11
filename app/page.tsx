@@ -37,7 +37,7 @@ export default function HomePage() {
           {agent && (
             <div className="bg-gradient-to-r from-jawudi-navy to-deep-navy text-white rounded-xl p-6 md:p-8 mb-8">
               <h2 className="text-2xl font-bold mb-2">Welcome back, {agent.full_name}!</h2>
-              <p className="text-gray-300">Ready to collect field data</p>
+              <p className="text-gray-300">Ready to collect field data today</p>
             </div>
           )}
 
