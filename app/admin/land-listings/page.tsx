@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useAuth } from '@/lib/contexts/AuthContext'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
@@ -24,7 +24,7 @@ interface LandListing {
   }
 }
 
-export default function LandListingsPage() {
+function LandListingsContent() {
   const { user, isLoading } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -232,5 +232,20 @@ export default function LandListingsPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function LandListingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-jawudi-mint border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading listings...</p>
+        </div>
+      </div>
+    }>
+      <LandListingsContent />
+    </Suspense>
   )
 }
