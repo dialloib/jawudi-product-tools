@@ -1,5 +1,8 @@
 'use client'
 
+// Force dynamic rendering to bypass Vercel's CDN cache
+export const dynamic = 'force-dynamic'
+
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { FileText, Package, Shield } from 'lucide-react'
